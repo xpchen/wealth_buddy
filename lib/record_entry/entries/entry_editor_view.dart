@@ -7,6 +7,8 @@ import '../dialogs/expense/expense_sheet.dart';
 import '../dialogs/expense/expense_sheet_config.dart';
 import '../dialogs/income/income_sheet.dart';
 import '../dialogs/income/income_sheet_config.dart';
+import '../dialogs/transfer/transfer_sheet.dart';
+import '../dialogs/transfer/transfer_sheet_config.dart';
 
 class EntryEditorView extends StatefulWidget {
   final EntryKind kind;
@@ -17,9 +19,11 @@ class EntryEditorView extends StatefulWidget {
   final ValueChanged<EntryDraft> onDraftChanged;
 
   final VoidCallback onSubmit;
+  final String ledgerId;
 
   const EntryEditorView({
     super.key,
+    required this.ledgerId,
     required this.kind,
     required this.modeIndex,
     required this.onModeChange,
@@ -35,16 +39,28 @@ class EntryEditorView extends StatefulWidget {
 class _EntryEditorViewState extends State<EntryEditorView> {
   bool _keypadVisible = true;
 
+  bool get _isTransfer => widget.kind == EntryKind.transfer;
+
   Color get _amountColor {
-    // 截图：支出是偏青色；收入可偏红；转账沿用青色也可
+    // 截图：转账金额是黑色；支出偏青；收入偏红
+    if (_isTransfer) return const Color(0xFF1F2329);
     if (widget.kind == EntryKind.income) return const Color(0xFFE86A5E);
     return const Color(0xFF2CB7B0);
+  }
+
+  Color get _lineColor {
+    // 截图：转账下方是橙色线；支出/收入用青色线
+    if (_isTransfer) return const Color(0xFFE6A15B);
+    return const Color(0xFF2CB7B0);
+  }
+
+  void _toast(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
   Widget build(BuildContext context) {
     const bg = Color(0xFFF6F7F9);
-    const tealLine = Color(0xFF2CB7B0);
 
     return Container(
       color: bg,
@@ -109,98 +125,137 @@ class _EntryEditorViewState extends State<EntryEditorView> {
                         ],
                       ),
                       const SizedBox(height: 10),
-                      Container(height: 2, color: tealLine.withOpacity(0.85)),
+                      Container(height: 2, color: _lineColor.withOpacity(0.85)),
                     ],
                   ),
                 ),
 
                 const SizedBox(height: 10),
 
-                // 字段区（分类/账户/时间/备注）
+                // 字段区
                 Container(
                   color: Colors.white,
                   child: Column(
                     children: [
-                      FieldRow(
-                        icon: Icons.grid_view_outlined,
-                        title: '分类',
-                        value: widget.draft.category,
-                        onTap: () async {
-                          debugPrint('[CategoryTap] handled: ${widget.kind}');
-                          if (widget.kind == EntryKind.expense) {
-                            debugPrint('[CategoryTap] open expense picker');
-                            final String? path =
-                                await showExpenseDialog<String>(
-                                  context,
-                                  config: const ExpenseDialogConfig.picker(),
+                      // 1) 分类：转账不显示
+                      if (!_isTransfer) ...[
+                        FieldRow(
+                          icon: Icons.grid_view_outlined,
+                          title: '分类',
+                          value: widget.draft.category,
+                          onTap: () async {
+                            debugPrint('[CategoryTap] handled: ${widget.kind}');
+                            if (widget.kind == EntryKind.expense) {
+                              final String? path =
+                                  await showExpenseDialog<String>(
+                                    context,
+                                    config: ExpenseDialogConfig.picker(
+                                      ledgerId: widget.ledgerId,
+                                      enableSearch: true,
+                                      enableCreate: true,
+                                    ),
+                                  );
+                              if (path != null && path.isNotEmpty) {
+                                widget.onDraftChanged(
+                                  widget.draft.copyWith(category: path),
                                 );
-                            if (path != null && path.isNotEmpty) {
-                              widget.onDraftChanged(
-                                widget.draft.copyWith(category: path),
-                              );
+                              }
+                              return;
                             }
-                            return;
-                          }
 
-                          if (widget.kind == EntryKind.income) {
-                            debugPrint('[CategoryTap] open income picker');
-                            final String? path = await showIncomeDialog<String>(
-                              context,
-                              config: const IncomeDialogConfig.picker(),
-                            );
-                            if (path != null && path.isNotEmpty) {
-                              widget.onDraftChanged(
-                                widget.draft.copyWith(category: path),
-                              );
+                            if (widget.kind == EntryKind.income) {
+                              final String? path =
+                                  await showIncomeDialog<String>(
+                                    context,
+                                    config: IncomeDialogConfig.picker(
+                                      ledgerId: widget.ledgerId,
+                                      enableSearch: true,
+                                      enableCreate: true,
+                                    ),
+                                  );
+                              if (path != null && path.isNotEmpty) {
+                                widget.onDraftChanged(
+                                  widget.draft.copyWith(category: path),
+                                );
+                              }
+                              return;
                             }
-                            return;
-                          }
-                        },
-                      ),
-                      const Divider(
-                        height: 1,
-                        thickness: 1,
-                        indent: 56,
-                        color: Color(0xFFF0F2F5),
-                      ),
-                      FieldRow(
-                        icon: Icons.account_balance_wallet_outlined,
-                        title: '账户',
-                        value: widget.draft.account,
-                        onTap: () {},
-                      ),
-                      const Divider(
-                        height: 1,
-                        thickness: 1,
-                        indent: 56,
-                        color: Color(0xFFF0F2F5),
-                      ),
-                      FieldRow(
-                        icon: Icons.access_time,
-                        title: '时间',
-                        value: widget.draft.timeText,
-                        trailing: IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          icon: const Icon(
-                            Icons.close,
-                            size: 18,
-                            color: Color(0xFFB0B6BF),
-                          ),
-                          onPressed: () {
-                            widget.onDraftChanged(
-                              widget.draft.copyWith(timeText: '今天  01月07日'),
-                            );
                           },
                         ),
-                        onTap: () {},
-                      ),
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          indent: 56,
+                          color: Color(0xFFF0F2F5),
+                        ),
+                      ],
+
+                      // 2) 账户：转账显示“转出/转入”
+                      if (_isTransfer) ...[
+                        _transferAccountRow(),
+                      ] else ...[
+                        FieldRow(
+                          icon: Icons.account_balance_wallet_outlined,
+                          title: '账户',
+                          value: widget.draft.account,
+                          onTap: () async {
+                            final picked = await _showAccountPicker(
+                              '选择账户',
+                              widget.draft.account,
+                            );
+                            if (picked != null && picked.isNotEmpty) {
+                              widget.onDraftChanged(
+                                widget.draft.copyWith(account: picked),
+                              );
+                            }
+                          },
+                        ),
+                      ],
                       const Divider(
                         height: 1,
                         thickness: 1,
                         indent: 56,
                         color: Color(0xFFF0F2F5),
                       ),
+
+                      // 3) 时间：转账不显示（改到 chip）
+                      if (!_isTransfer) ...[
+                        FieldRow(
+                          icon: Icons.access_time,
+                          title: '时间',
+                          value: widget.draft.timeText,
+                          trailing: IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: const Icon(
+                              Icons.close,
+                              size: 18,
+                              color: Color(0xFFB0B6BF),
+                            ),
+                            onPressed: () {
+                              widget.onDraftChanged(
+                                widget.draft.copyWith(timeText: _todayText()),
+                              );
+                            },
+                          ),
+                          onTap: () async {
+                            final t = await _pickDateText();
+                            if (t != null) {
+                              widget.onDraftChanged(
+                                widget.draft.copyWith(timeText: t),
+                              );
+                            }
+                          },
+                        ),
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          indent: 56,
+                          color: Color(0xFFF0F2F5),
+                        ),
+                      ],
+
+                      // 4) 备注：通用
                       FieldRow(
                         icon: Icons.bookmark_border,
                         title: '备注',
@@ -222,6 +277,7 @@ class _EntryEditorViewState extends State<EntryEditorView> {
                           }
                         },
                       ),
+
                       const SizedBox(height: 10),
 
                       // chips
@@ -231,6 +287,21 @@ class _EntryEditorViewState extends State<EntryEditorView> {
                           spacing: 10,
                           runSpacing: 10,
                           children: [
+                            // 转账：加上日期 chip（与截图一致）
+                            if (_isTransfer)
+                              _chip(
+                                widget.draft.timeText.isEmpty
+                                    ? _todayText()
+                                    : widget.draft.timeText,
+                                onTap: () async {
+                                  final t = await _pickDateText();
+                                  if (t != null) {
+                                    widget.onDraftChanged(
+                                      widget.draft.copyWith(timeText: t),
+                                    );
+                                  }
+                                },
+                              ),
                             _chip('136****02...'),
                             _chip('商家'),
                             _chip('项目'),
@@ -261,7 +332,9 @@ class _EntryEditorViewState extends State<EntryEditorView> {
                       onSubmit: widget.onSubmit,
                     )
                   : KeypadCollapsedBar(
-                      key: const ValueKey('collapsed'),
+                      // 如果你这里还报 “No named parameter with the name 'key'”
+                      // 说明 KeypadCollapsedBar 构造函数没写 super.key；
+                      // 你可以：1) 给它加 super.key；或 2) 删除这里的 key 参数（我这里本来就没传）
                       onExpand: () => setState(() => _keypadVisible = true),
                     ),
             ),
@@ -271,8 +344,168 @@ class _EntryEditorViewState extends State<EntryEditorView> {
     );
   }
 
-  Widget _chip(String text) {
-    return Container(
+  // ==========================
+  // 转账账户行：转出 / 转入
+  // ==========================
+  Widget _transferAccountRow() {
+    return InkWell(
+      onTap: () {},
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 40,
+              child: Icon(
+                Icons.account_balance_wallet_outlined,
+                color: Color(0xFF1F2329),
+              ),
+            ),
+            const SizedBox(width: 6),
+            const SizedBox(
+              width: 44,
+              child: Text(
+                '账户',
+                style: TextStyle(fontSize: 14, color: Color(0xFF1F2329)),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () async {
+                        final picked = await _showAccountPicker(
+                          '选择转出账户',
+                          widget.draft.fromAccount,
+                        );
+                        if (picked == null) return;
+                        if (picked == widget.draft.toAccount) {
+                          _toast('转出与转入账户不能相同');
+                          return;
+                        }
+                        widget.onDraftChanged(
+                          widget.draft.copyWith(fromAccount: picked),
+                        );
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '转出',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF8A8F99),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            widget.draft.fromAccount,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1F2329),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+
+                  // 中间箭头：点击交换
+                  InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () {
+                      final a = widget.draft.fromAccount;
+                      final b = widget.draft.toAccount;
+                      widget.onDraftChanged(
+                        widget.draft.copyWith(fromAccount: b, toAccount: a),
+                      );
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.all(6),
+                      child: Icon(
+                        Icons.compare_arrows_rounded,
+                        color: Color(0xFFB0B6BF),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () async {
+                        final picked = await _showAccountPicker(
+                          '选择转入账户',
+                          widget.draft.toAccount,
+                        );
+                        if (picked == null) return;
+                        if (picked == widget.draft.fromAccount) {
+                          _toast('转出与转入账户不能相同');
+                          return;
+                        }
+                        widget.onDraftChanged(
+                          widget.draft.copyWith(toAccount: picked),
+                        );
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '转入',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF8A8F99),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            widget.draft.toAccount,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1F2329),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _showAccountPicker(String title, String current) async {
+    // 直接复用你新建的转账对话框（分组账户列表）
+    final picked = await showTransferDialog<String>(
+      context,
+      config: TransferDialogConfig.picker(
+        ledgerId: widget.ledgerId,
+        selectedName: current,
+        enableSearch: true,
+        enableCreate: true,
+      ),
+    );
+
+    // 返回账户名称（CategoryItem.name）
+    return picked;
+  }
+
+  Widget _chip(String text, {VoidCallback? onTap}) {
+    final child = Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: const Color(0xFFF3F5F7),
@@ -282,6 +515,14 @@ class _EntryEditorViewState extends State<EntryEditorView> {
         text,
         style: const TextStyle(fontSize: 13, color: Color(0xFF1F2329)),
       ),
+    );
+
+    if (onTap == null) return child;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: child,
     );
   }
 
@@ -374,5 +615,31 @@ class _EntryEditorViewState extends State<EntryEditorView> {
         ],
       ),
     );
+  }
+
+  // ==========================
+  // 日期选择：输出类似 “今天  01月08日”
+  // ==========================
+  String _two(int n) => n.toString().padLeft(2, '0');
+
+  String _todayText() {
+    final now = DateTime.now();
+    return '今天  ${_two(now.month)}月${_two(now.day)}日';
+  }
+
+  Future<String?> _pickDateText() async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: DateTime(now.year - 10),
+      lastDate: DateTime(now.year + 10),
+    );
+    if (date == null) return null;
+
+    final isToday =
+        date.year == now.year && date.month == now.month && date.day == now.day;
+    final prefix = isToday ? '今天  ' : '';
+    return '$prefix${_two(date.month)}月${_two(date.day)}日';
   }
 }

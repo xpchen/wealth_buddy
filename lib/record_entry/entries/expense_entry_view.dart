@@ -8,11 +8,11 @@ class ExpenseEntryView extends StatelessWidget {
 
   final EntryDraft draft;
   final ValueChanged<EntryDraft> onDraftChanged;
-
+  final String ledgerId;
   final VoidCallback onSubmit;
-
   const ExpenseEntryView({
     super.key,
+    required this.ledgerId,
     required this.modeIndex,
     required this.onModeChange,
     required this.draft,
@@ -23,6 +23,7 @@ class ExpenseEntryView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return EntryEditorView(
+      ledgerId: ledgerId,
       kind: EntryKind.expense,
       modeIndex: modeIndex,
       onModeChange: onModeChange,

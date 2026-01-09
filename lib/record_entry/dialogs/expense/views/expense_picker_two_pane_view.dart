@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../category/data/category_repo_mock.dart';
+import '../../../category/data/category_repo_drift.dart';
 import '../../../category/data/category_repository.dart';
 import '../../../category/models/category_models.dart';
 import '../expense_sheet_config.dart';
@@ -16,7 +16,7 @@ class ExpensePickerTwoPaneView extends StatefulWidget {
 }
 
 class _ExpensePickerTwoPaneViewState extends State<ExpensePickerTwoPaneView> {
-  final CategoryRepository repo = CategoryRepoMock();
+  late final CategoryRepository repo;
 
   final ScrollController _rightScroll = ScrollController();
   final GlobalKey _rightListKey = GlobalKey();
@@ -30,6 +30,7 @@ class _ExpensePickerTwoPaneViewState extends State<ExpensePickerTwoPaneView> {
   @override
   void initState() {
     super.initState();
+    repo = CategoryRepoDrift(ledgerId: widget.config.ledgerId);
     _load();
     _rightScroll.addListener(_handleRightScroll);
   }

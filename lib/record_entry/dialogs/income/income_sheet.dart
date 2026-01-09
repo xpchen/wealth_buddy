@@ -6,7 +6,7 @@ import 'views/income_picker_two_pane_view.dart';
 
 Future<T?> showIncomeDialog<T>(
   BuildContext context, {
-  IncomeDialogConfig config = const IncomeDialogConfig.picker(),
+  required IncomeDialogConfig config,
 }) {
   return showModalBottomSheet<T>(
     context: context,

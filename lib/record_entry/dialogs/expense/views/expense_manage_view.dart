@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../category/data/category_repo_mock.dart';
+import '../../../category/data/category_repo_drift.dart';
 import '../../../category/data/category_repository.dart';
 import '../../../category/models/category_models.dart';
 import '../../../category/pages/expense_primary_editor_page.dart';
@@ -19,7 +19,7 @@ class ExpenseManageView extends StatefulWidget {
 }
 
 class _ExpenseManageViewState extends State<ExpenseManageView> {
-  final CategoryRepository repo = CategoryRepoMock();
+  late final CategoryRepository repo;
 
   List<CategoryGroup> groups = const [];
   bool loading = true;
@@ -27,6 +27,7 @@ class _ExpenseManageViewState extends State<ExpenseManageView> {
   @override
   void initState() {
     super.initState();
+    repo = CategoryRepoDrift(ledgerId: widget.config.ledgerId);
     _load();
   }
 

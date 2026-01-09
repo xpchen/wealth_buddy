@@ -141,4 +141,65 @@ class CategoryRepoMock implements CategoryRepository {
       ),
     ];
   }
+
+  @override
+  Future<List<CategoryGroup>> listTransferGroups() async {
+    // 这里先用 mock，后续你可以替换为 account 模块的真实账户列表
+    return const [
+      CategoryGroup(
+        id: 'cash',
+        name: '现金账户',
+        icon: Icons.account_balance_wallet_outlined,
+        children: [
+          CategoryItem(
+            id: 'cash_cny',
+            name: '现金 (CNY)',
+            icon: Icons.attach_money,
+          ),
+        ],
+      ),
+      CategoryGroup(
+        id: 'saving',
+        name: '储蓄账户',
+        icon: Icons.savings_outlined,
+        children: [
+          CategoryItem(
+            id: 'bank_cny',
+            name: '银行卡 (CNY)',
+            icon: Icons.account_balance,
+          ),
+        ],
+      ),
+      CategoryGroup(
+        id: 'virtual',
+        name: '虚拟账户',
+        icon: Icons.cloud_outlined,
+        children: [
+          CategoryItem(
+            id: 'wx',
+            name: '微信钱包 (CNY)',
+            icon: Icons.chat_bubble_outline,
+          ),
+          CategoryItem(id: 'alipay', name: '支付宝余额 (CNY)', icon: Icons.payment),
+        ],
+      ),
+      CategoryGroup(
+        id: 'invest',
+        name: '投资账户',
+        icon: Icons.trending_up_outlined,
+        children: [
+          CategoryItem(
+            id: 'broker',
+            name: '证券账户 (CNY)',
+            icon: Icons.show_chart,
+          ),
+          CategoryItem(
+            id: 'fund',
+            name: '基金账户 (CNY)',
+            icon: Icons.pie_chart_outline,
+          ),
+        ],
+      ),
+    ];
+  }
 }

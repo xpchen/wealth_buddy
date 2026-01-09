@@ -1,31 +1,42 @@
 import 'package:flutter/material.dart';
+
 import '../shared/record_types.dart';
+
 import 'expense/expense_sheet.dart';
 import 'expense/expense_sheet_config.dart';
+
+import 'income/income_sheet.dart';
+import 'income/income_sheet_config.dart';
+
+import 'transfer/transfer_sheet.dart';
+import 'transfer/transfer_sheet_config.dart';
 
 class RecordTypeDialogs {
   static Future<void> open(
     BuildContext context, {
+    required String ledgerId,
     required RecordType type,
   }) async {
     switch (type) {
       case RecordType.expense:
         await showExpenseDialog(
           context,
-          config: const ExpenseDialogConfig.manage(), // 默认：支出分类管理
+          config: ExpenseDialogConfig.manage(ledgerId: ledgerId),
         );
         return;
 
       case RecordType.income:
-        ScaffoldMessenger.of(
+        await showIncomeDialog(
           context,
-        ).showSnackBar(const SnackBar(content: Text('收入对话框：待实现')));
+          config: IncomeDialogConfig.picker(ledgerId: ledgerId),
+        );
         return;
 
       case RecordType.transfer:
-        ScaffoldMessenger.of(
+        await showTransferDialog(
           context,
-        ).showSnackBar(const SnackBar(content: Text('转账对话框：待实现')));
+          config: TransferDialogConfig.picker(ledgerId: ledgerId),
+        );
         return;
     }
   }

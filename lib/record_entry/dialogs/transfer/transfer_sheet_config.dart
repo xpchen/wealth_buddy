@@ -1,28 +1,33 @@
-enum IncomeDialogMode { pickerTwoPaneGrid }
+enum TransferDialogMode { pickerSectionList }
 
-class IncomeDialogConfig {
+class TransferDialogConfig {
   final String ledgerId;
-  final IncomeDialogMode mode;
+  final TransferDialogMode mode;
+
   final bool enableSearch;
   final bool enableCreate;
+  final String? selectedName;
 
-  IncomeDialogConfig._(
+  TransferDialogConfig._(
     this.ledgerId,
     this.mode, {
     required this.enableSearch,
     required this.enableCreate,
+    required this.selectedName,
   });
 
-  factory IncomeDialogConfig.picker({
+  factory TransferDialogConfig.picker({
     required String ledgerId,
     bool enableSearch = true,
     bool enableCreate = true,
+    String? selectedName,
   }) {
-    return IncomeDialogConfig._(
+    return TransferDialogConfig._(
       ledgerId,
-      IncomeDialogMode.pickerTwoPaneGrid,
+      TransferDialogMode.pickerSectionList,
       enableSearch: enableSearch,
       enableCreate: enableCreate,
+      selectedName: selectedName,
     );
   }
 }

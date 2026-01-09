@@ -1,7 +1,26 @@
 import 'package:flutter/material.dart';
 
+import '../data/db/ledger/ledger_db.dart';
+import '../data/db/ledger/ledger_tables.dart';
+import 'account_money.dart';
+import 'account_repo.dart';
+import 'account_type_ui.dart';
+
 class CashAccountEditPage extends StatefulWidget {
-  const CashAccountEditPage({super.key});
+  final String ledgerId;
+  final AccountType accountType;
+  final String pageTitle;
+
+  /// If provided, page works in "edit" mode.
+  final Account? initial;
+
+  const CashAccountEditPage({
+    super.key,
+    this.ledgerId = 'default',
+    this.accountType = AccountType.cash,
+    this.pageTitle = '新建现金账户',
+    this.initial,
+  });
 
   @override
   State<CashAccountEditPage> createState() => _CashAccountEditPageState();
@@ -12,11 +31,30 @@ class _CashAccountEditPageState extends State<CashAccountEditPage> {
   final _balanceCtrl = TextEditingController();
 
   bool _hidden = false;
-  bool _includeInAssets = true;
+
+  /// 是否参与总资产/总负债/净资产等统计（schema v2: accounts.includeInTotals）。
+  bool _includeInTotals = true;
+
+  final _sortCtrl = TextEditingController();
+
+  bool _saving = false;
 
   @override
   void initState() {
     super.initState();
+
+    final a = widget.initial;
+    if (a != null) {
+      _nameCtrl.text = a.name;
+      _balanceCtrl.text = Money.formatMinor(a.initialBalanceMinor);
+      _hidden = a.isArchived;
+      _includeInTotals = a.includeInTotals;
+      _sortCtrl.text = (a.sortOrder).toString();
+    } else {
+      _includeInTotals = true;
+      _sortCtrl.text = '0';
+}
+
     _nameCtrl.addListener(() => setState(() {}));
   }
 
@@ -24,17 +62,79 @@ class _CashAccountEditPageState extends State<CashAccountEditPage> {
   void dispose() {
     _nameCtrl.dispose();
     _balanceCtrl.dispose();
+    _sortCtrl.dispose();
     super.dispose();
   }
 
-  void _save() {
-    // TODO: 保存逻辑（入库/状态管理）
-    Navigator.of(context).maybePop();
+  Future<void> _save() async {
+    if (_saving) return;
+
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) {
+      _toast('请输入账户名称');
+      return;
+    }
+
+    int minor = 0;
+    try {
+      minor = Money.parseToMinor(_balanceCtrl.text.isEmpty ? '0' : _balanceCtrl.text);
+    } catch (_) {
+      _toast('余额格式不正确，例如：123.45');
+      return;
+    }
+
+
+    int sortOrder = 0;
+    try {
+      final s = _sortCtrl.text.trim();
+      sortOrder = s.isEmpty ? 0 : int.parse(s);
+    } catch (_) {
+      _toast('排序必须是整数');
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      if (widget.initial == null) {
+        await AccountRepo.instance.createAccount(
+          ledgerId: widget.ledgerId,
+          type: widget.accountType,
+          name: name,
+          initialBalanceMinor: minor,
+          hidden: _hidden,
+          includeInTotals: _includeInTotals,
+          sortOrder: sortOrder,
+        );
+      } else {
+        await AccountRepo.instance.updateAccount(
+          ledgerId: widget.ledgerId,
+          accountId: widget.initial!.accountId,
+          name: name,
+          initialBalanceMinor: minor,
+          hidden: _hidden,
+          includeInTotals: _includeInTotals,
+          sortOrder: sortOrder,
+        );
+      }
+
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      _toast('保存失败：$e');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  void _toast(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
   Widget build(BuildContext context) {
-    final nameLen = _nameCtrl.text.characters.length;
+    final ui = accountTypeUi(widget.accountType);
+
+    final canSave = _nameCtrl.text.trim().isNotEmpty && !_saving;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F7F9),
@@ -42,9 +142,9 @@ class _CashAccountEditPageState extends State<CashAccountEditPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
-          '新建现金账户',
-          style: TextStyle(
+        title: Text(
+          widget.initial == null ? widget.pageTitle : '编辑${ui.title}账户',
+          style: const TextStyle(
             color: Color(0xFF222222),
             fontWeight: FontWeight.w600,
           ),
@@ -55,233 +155,156 @@ class _CashAccountEditPageState extends State<CashAccountEditPage> {
         ),
         actions: [
           TextButton(
-            onPressed: _save,
-            child: const Text(
+            onPressed: canSave ? _save : null,
+            child: Text(
               '保存',
               style: TextStyle(
-                color: Color(0xFFFF8A3D),
+                color: canSave ? ui.accent : const Color(0xFFB8BEC6),
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
-          const SizedBox(width: 6),
         ],
       ),
-      body: Column(
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
         children: [
-          const SizedBox(height: 10),
-          _FormCard(
+          _sectionCard(
+            title: '基础信息',
             children: [
               _InputRow(
                 label: '账户名称',
-                hintText: '请输入账户名称',
+                hint: '例如：现金 / 招商银行卡 / 微信钱包',
                 controller: _nameCtrl,
-                maxLength: 16,
-                trailingText: '$nameLen',
               ),
-              _DividerIndent(),
-              _TapRow(
-                label: '账户图标',
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _SmallIconBadge(
-                      icon: Icons.payments_outlined,
-                      bg: const Color(0xFFFFF3E8),
-                      color: const Color(0xFFFF8A3D),
-                    ),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.chevron_right, color: Color(0xFFB8BEC6)),
-                  ],
-                ),
-                onTap: () {
-                  // TODO: 打开图标选择器
-                },
-              ),
-              _DividerIndent(),
+              const Divider(height: 1, color: Color(0xFFF0F1F3), indent: 16),
               _InputRow(
                 label: '余额',
-                hintText: '请输入金额',
+                hint: '0.00',
                 controller: _balanceCtrl,
-                keyboardType: TextInputType.number,
-                alignRight: true,
-              ),
-              _DividerIndent(),
-              _TapRow(
-                label: '币种',
-                trailing: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '人民币（CNY）',
-                      style: TextStyle(color: Color(0xFF222222), fontSize: 14),
-                    ),
-                    SizedBox(width: 6),
-                    Icon(Icons.chevron_right, color: Color(0xFFB8BEC6)),
-                  ],
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
                 ),
-                onTap: () {
-                  // TODO: 币种选择
-                },
+                suffix: const _SmallIconBadge(text: 'CNY'),
+              ),
+              const Divider(height: 1, color: Color(0xFFF0F1F3), indent: 16),
+              _InputRow(
+                label: '排序',
+                hint: '0（越小越靠前）',
+                controller: _sortCtrl,
+                keyboardType: TextInputType.number,
               ),
             ],
           ),
           const SizedBox(height: 10),
-          _FormCard(
+          _sectionCard(
+            title: '显示与统计',
             children: [
               _SwitchRow(
                 label: '隐藏',
                 value: _hidden,
                 onChanged: (v) => setState(() => _hidden = v),
               ),
-              _DividerIndent(),
+              const Divider(height: 1, color: Color(0xFFF0F1F3), indent: 16),
               _SwitchRow(
-                label: '计入资产',
-                value: _includeInAssets,
-                activeColor: const Color(0xFFFF8A3D),
-                onChanged: (v) => setState(() => _includeInAssets = v),
+                label: '计入统计',
+                value: _includeInTotals,
+                activeColor: ui.accent,
+                onChanged: (v) => setState(() => _includeInTotals = v),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          _FormCard(
-            children: [
-              _TapRow(
-                label: '添加',
-                trailing: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '添加子账户',
-                      style: TextStyle(color: Color(0xFF222222), fontSize: 14),
-                    ),
-                    SizedBox(width: 6),
-                    Icon(Icons.chevron_right, color: Color(0xFFB8BEC6)),
-                  ],
-                ),
-                onTap: () {
-                  // TODO: 添加子账户
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          _FormCard(
-            children: [
-              _InputRow(
-                label: '备注',
-                hintText: '请输入备注',
-                controller: TextEditingController(),
-                maxLines: 2,
-              ),
-            ],
-          ),
-          const Spacer(),
+          const SizedBox(height: 14),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
-            child: SizedBox(
-              height: 48,
-              width: double.infinity,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
-                  gradient: const LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [Color(0xFFF4B07A), Color(0xFFEF9A4D)],
-                  ),
-                ),
-                child: ElevatedButton(
-                  onPressed: _save,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                  ),
-                  child: const Text(
-                    '保存',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              '提示：关闭“计入统计”后，该账户仍会显示在列表中，但不会参与总资产/总负债/净资产等统计。',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF8A8F98)),
+            ),
+          ),
+          const SizedBox(height: 18),
+          _TapRow(
+            label: '更多设置（后续）',
+            value: '图标 / 备注 / 币种 / 信用卡账单日等',
+            onTap: () => _toast('该功能即将上线'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionCard({required String title, required List<Widget> children}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF222222),
               ),
             ),
           ),
+          const Divider(height: 1, color: Color(0xFFF0F1F3)),
+          ...children,
         ],
       ),
-    );
-  }
-}
-
-class _FormCard extends StatelessWidget {
-  final List<Widget> children;
-
-  const _FormCard({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(children: children),
-    );
-  }
-}
-
-class _DividerIndent extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return const Divider(
-      height: 1,
-      color: Color(0xFFF0F1F3),
-      indent: 16,
-      endIndent: 16,
     );
   }
 }
 
 class _TapRow extends StatelessWidget {
   final String label;
-  final Widget trailing;
+  final String value;
   final VoidCallback onTap;
 
-  const _TapRow({
-    required this.label,
-    required this.trailing,
-    required this.onTap,
-  });
+  const _TapRow({required this.label, required this.value, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Text(
-              label,
-              style: const TextStyle(fontSize: 14, color: Color(0xFF8E959C)),
-            ),
-            const Spacer(),
-            trailing,
-          ],
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF222222),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      value,
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF8A8F98)),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(0xFFB8BEC6)),
+            ],
+          ),
         ),
       ),
     );
@@ -291,7 +314,7 @@ class _TapRow extends StatelessWidget {
 class _SwitchRow extends StatelessWidget {
   final String label;
   final bool value;
-  final ValueChanged<bool> onChanged;
+  final ValueChanged<bool>? onChanged;
   final Color? activeColor;
 
   const _SwitchRow({
@@ -307,15 +330,16 @@ class _SwitchRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 14, color: Color(0xFF8E959C)),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 14, color: Color(0xFF222222)),
+            ),
           ),
-          const Spacer(),
-          Switch.adaptive(
+          Switch(
             value: value,
-            activeColor: activeColor,
             onChanged: onChanged,
+            activeColor: activeColor,
           ),
         ],
       ),
@@ -325,67 +349,47 @@ class _SwitchRow extends StatelessWidget {
 
 class _InputRow extends StatelessWidget {
   final String label;
-  final String hintText;
+  final String hint;
   final TextEditingController controller;
-  final int? maxLength;
-  final int maxLines;
   final TextInputType? keyboardType;
-  final bool alignRight;
-  final String? trailingText;
+  final Widget? suffix;
 
   const _InputRow({
     required this.label,
-    required this.hintText,
+    required this.hint,
     required this.controller,
-    this.maxLength,
-    this.maxLines = 1,
     this.keyboardType,
-    this.alignRight = false,
-    this.trailingText,
+    this.suffix,
   });
 
   @override
   Widget build(BuildContext context) {
-    final textAlign = alignRight ? TextAlign.right : TextAlign.left;
-
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Row(
-        crossAxisAlignment: maxLines > 1
-            ? CrossAxisAlignment.start
-            : CrossAxisAlignment.center,
         children: [
           SizedBox(
-            width: 86,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: Text(
-                label,
-                style: const TextStyle(fontSize: 14, color: Color(0xFF8E959C)),
-              ),
+            width: 80,
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 14, color: Color(0xFF222222)),
             ),
           ),
           Expanded(
             child: TextField(
               controller: controller,
-              maxLength: maxLength,
-              maxLines: maxLines,
               keyboardType: keyboardType,
-              textAlign: textAlign,
               decoration: InputDecoration(
-                hintText: hintText,
-                counterText: '',
+                hintText: hint,
+                hintStyle: const TextStyle(color: Color(0xFFB8BEC6)),
                 border: InputBorder.none,
-                hintStyle: const TextStyle(color: Color(0xFFC0C5CC)),
+                isDense: true,
               ),
             ),
           ),
-          if (trailingText != null) ...[
-            const SizedBox(width: 8),
-            Text(
-              trailingText!,
-              style: const TextStyle(color: Color(0xFFB8BEC6), fontSize: 12),
-            ),
+          if (suffix != null) ...[
+            const SizedBox(width: 10),
+            suffix!,
           ],
         ],
       ),
@@ -394,26 +398,21 @@ class _InputRow extends StatelessWidget {
 }
 
 class _SmallIconBadge extends StatelessWidget {
-  final IconData icon;
-  final Color bg;
-  final Color color;
-
-  const _SmallIconBadge({
-    required this.icon,
-    required this.bg,
-    required this.color,
-  });
+  final String text;
+  const _SmallIconBadge({required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 26,
-      height: 26,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(7),
+        color: const Color(0xFFF1F2F4),
+        borderRadius: BorderRadius.circular(999),
       ),
-      child: Icon(icon, size: 18, color: color),
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+      ),
     );
   }
 }

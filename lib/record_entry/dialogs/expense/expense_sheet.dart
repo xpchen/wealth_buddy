@@ -8,16 +8,15 @@ import 'views/expense_picker_simple_list_view.dart';
 
 Future<T?> showExpenseDialog<T>(
   BuildContext context, {
-  ExpenseDialogConfig config = const ExpenseDialogConfig.manage(),
+  required ExpenseDialogConfig config,
 }) {
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
-    builder: (_) {
-      return BottomSheetScaffold(child: _ExpenseSheetBody(config: config));
-    },
+    builder: (_) =>
+        BottomSheetScaffold(child: _ExpenseSheetBody(config: config)),
   );
 }
 

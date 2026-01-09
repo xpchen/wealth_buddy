@@ -10,9 +10,10 @@ class IncomeEntryView extends StatelessWidget {
   final ValueChanged<EntryDraft> onDraftChanged;
 
   final VoidCallback onSubmit;
-
+  final String ledgerId;
   const IncomeEntryView({
     super.key,
+    required this.ledgerId,
     required this.modeIndex,
     required this.onModeChange,
     required this.draft,
@@ -23,6 +24,7 @@ class IncomeEntryView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return EntryEditorView(
+      ledgerId: ledgerId,
       kind: EntryKind.income,
       modeIndex: modeIndex,
       onModeChange: onModeChange,

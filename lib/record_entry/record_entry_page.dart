@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import 'entries/expense_entry_view.dart';
 import 'entries/income_entry_view.dart';
 import 'entries/transfer_entry_view.dart';
@@ -7,9 +6,13 @@ import 'models/entry_models.dart';
 import 'models/template_models.dart';
 import 'templates/template_home_view.dart';
 import 'widgets/top_tabs_bar.dart';
+import 'dialogs/record_type_dialogs.dart';
+import 'shared/record_types.dart';
+import 'domain/record_service.dart'; // 按你实际路径调整
 
 class RecordEntryPage extends StatefulWidget {
-  const RecordEntryPage({super.key});
+  final String ledgerId;
+  const RecordEntryPage({super.key, required this.ledgerId});
 
   @override
   State<RecordEntryPage> createState() => _RecordEntryPageState();
@@ -78,18 +81,36 @@ class _RecordEntryPageState extends State<RecordEntryPage> {
     });
   }
 
-  void _onSubmit() {
+  Future<void> _onSubmit() async {
     final kind = _activeKind;
     final draft = _activeDraft;
 
-    // TODO: 这里后续把 draft 打包成DTO写入数据库
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '提交：${kind.label} 金额=${draft.amount} 分类=${draft.category} 账户=${draft.account}',
-        ),
-      ),
-    );
+    try {
+      final txnId = await RecordService.instance.submitDraft(
+        ledgerId: widget.ledgerId,
+        kind: kind,
+        draft: draft,
+      );
+
+      // 成功后：重置草稿（只重置当前类型，体验更贴合）
+      setState(() {
+        _drafts[kind] = (kind == EntryKind.expense)
+            ? EntryDraft.initialExpense()
+            : (kind == EntryKind.income)
+            ? EntryDraft.initialIncome()
+            : EntryDraft.initialTransfer();
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('已保存：$txnId')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('保存失败：$e')));
+    }
   }
 
   @override
@@ -171,6 +192,7 @@ class _RecordEntryPageState extends State<RecordEntryPage> {
     // 只完善“三件套”：支出/收入/转账
     if (_topTabIndex == 2) {
       return IncomeEntryView(
+        ledgerId: widget.ledgerId,
         modeIndex: _modeIndex,
         onModeChange: _onModeChange,
         draft: _drafts[EntryKind.income]!,
@@ -180,6 +202,7 @@ class _RecordEntryPageState extends State<RecordEntryPage> {
     }
     if (_topTabIndex == 3) {
       return TransferEntryView(
+        ledgerId: widget.ledgerId,
         modeIndex: _modeIndex,
         onModeChange: _onModeChange,
         draft: _drafts[EntryKind.transfer]!,
@@ -190,6 +213,7 @@ class _RecordEntryPageState extends State<RecordEntryPage> {
 
     // 默认支出
     return ExpenseEntryView(
+      ledgerId: widget.ledgerId,
       modeIndex: _modeIndex,
       onModeChange: _onModeChange,
       draft: _drafts[EntryKind.expense]!,
@@ -203,7 +227,35 @@ class _RecordEntryPageState extends State<RecordEntryPage> {
       padding: const EdgeInsets.only(right: 10),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: () {},
+        onTap: () {
+          if (_topTabIndex == 1) {
+            RecordTypeDialogs.open(
+              context,
+              ledgerId: widget.ledgerId,
+              type: RecordType.expense,
+            );
+            return;
+          }
+          if (_topTabIndex == 2) {
+            RecordTypeDialogs.open(
+              context,
+              ledgerId: widget.ledgerId,
+              type: RecordType.income,
+            );
+            return;
+          }
+          if (_topTabIndex == 3) {
+            RecordTypeDialogs.open(
+              context,
+              ledgerId: widget.ledgerId,
+              type: RecordType.transfer,
+            );
+            return;
+          }
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('该功能暂未接入自定义面板')));
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(

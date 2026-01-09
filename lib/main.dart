@@ -2,9 +2,22 @@ import 'package:flutter/material.dart';
 import 'record_entry/record_entry_page.dart';
 import 'budget_center_page.dart';
 import 'account/account_module.dart';
+import 'data/db/db_manager.dart';
+import 'data/bootstrap/app_bootstrap.dart';
+import 'data/storage/app_paths.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await DbManager.instance.init(profileId: 'local');
+  await dumpDbPaths();
   runApp(const MyApp());
+}
+
+Future<void> dumpDbPaths() async {
+  debugPrint('meta:   ${await AppPaths.metaDbPath("local")}');
+  debugPrint('media:  ${await AppPaths.mediaDbPath("local")}');
+  // 如果你知道 ledgerId：
+  //debugPrint('ledger: ${await AppPaths.ledgerDbPath("local", ledgerId)}');
 }
 
 /// Demo App
@@ -24,13 +37,23 @@ class MyApp extends StatelessWidget {
           'Noto Sans CJK SC',
         ],
       ),
-      home: const LedgerHomePage(),
+      home: AppBootstrap(
+        homeBuilder: (ledgerId, ledgerName) =>
+            LedgerHomePage(ledgerId: ledgerId, ledgerName: ledgerName),
+      ),
     );
   }
 }
 
 class LedgerHomePage extends StatefulWidget {
-  const LedgerHomePage({super.key});
+  final String ledgerId;
+  final String ledgerName;
+
+  const LedgerHomePage({
+    super.key,
+    required this.ledgerId,
+    required this.ledgerName,
+  });
 
   @override
   State<LedgerHomePage> createState() => _LedgerHomePageState();
@@ -62,8 +85,8 @@ class _LedgerHomePageState extends State<LedgerHomePage> {
           ),
           onPressed: () {},
         ),
-        title: const Text(
-          '标准账本1',
+        title: Text(
+          widget.ledgerName,
           style: TextStyle(
             color: Color(0xFF1F2329),
             fontSize: 18,
@@ -119,7 +142,10 @@ class _LedgerHomePageState extends State<LedgerHomePage> {
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => const AccountHomePage(),
+                            builder: (_) => AccountHomePage(
+                              ledgerId: widget.ledgerId,
+                              ledgerName: widget.ledgerName, // 可选
+                            ),
                           ),
                         );
                       },
@@ -251,7 +277,7 @@ class _LedgerHomePageState extends State<LedgerHomePage> {
           color: const Color(0xFFEEF2F6),
           image: const DecorationImage(
             // 如果你没有这张图，运行不受影响：会走 onError 用渐变/底色占位
-            image: AssetImage('images/month_banner.png'),
+            image: AssetImage('assets/images/month_banner.png'),
             fit: BoxFit.cover,
             onError: null,
           ),
@@ -460,9 +486,11 @@ class _LedgerHomePageState extends State<LedgerHomePage> {
         elevation: 2,
         backgroundColor: Colors.transparent,
         onPressed: () {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const RecordEntryPage()));
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => RecordEntryPage(ledgerId: widget.ledgerId),
+            ),
+          );
         },
         child: Ink(
           decoration: BoxDecoration(

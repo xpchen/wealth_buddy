@@ -10,9 +10,10 @@ class TransferEntryView extends StatelessWidget {
   final ValueChanged<EntryDraft> onDraftChanged;
 
   final VoidCallback onSubmit;
-
+  final String ledgerId;
   const TransferEntryView({
     super.key,
+    required this.ledgerId,
     required this.modeIndex,
     required this.onModeChange,
     required this.draft,
@@ -23,6 +24,7 @@ class TransferEntryView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return EntryEditorView(
+      ledgerId: ledgerId,
       kind: EntryKind.transfer,
       modeIndex: modeIndex,
       onModeChange: onModeChange,

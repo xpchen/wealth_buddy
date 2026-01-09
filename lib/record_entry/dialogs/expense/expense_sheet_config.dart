@@ -1,52 +1,61 @@
-enum ExpenseDialogMode {
-  manage, // 分类管理（默认）
-  pickerTwoPaneGrid, // 两栏 + 宫格选择
-  pickerSimpleList, // 预留：单列表选择
-}
+enum ExpenseDialogMode { manage, pickerTwoPaneGrid, pickerSimpleList }
 
 class ExpenseDialogConfig {
+  final String ledgerId;
   final ExpenseDialogMode mode;
 
-  /// 预留扩展点
   final bool enableSearch;
   final bool enableReorder;
   final bool enableCreate;
 
-  const ExpenseDialogConfig._(
+  ExpenseDialogConfig._(
+    this.ledgerId,
     this.mode, {
     required this.enableSearch,
     required this.enableReorder,
     required this.enableCreate,
   });
 
-  const ExpenseDialogConfig.manage({
+  factory ExpenseDialogConfig.manage({
+    required String ledgerId,
     bool enableSearch = true,
     bool enableReorder = true,
     bool enableCreate = true,
-  }) : this._(
-         ExpenseDialogMode.manage,
-         enableSearch: enableSearch,
-         enableReorder: enableReorder,
-         enableCreate: enableCreate,
-       );
+  }) {
+    return ExpenseDialogConfig._(
+      ledgerId,
+      ExpenseDialogMode.manage,
+      enableSearch: enableSearch,
+      enableReorder: enableReorder,
+      enableCreate: enableCreate,
+    );
+  }
 
-  const ExpenseDialogConfig.picker({
+  factory ExpenseDialogConfig.picker({
+    required String ledgerId,
     bool enableSearch = true,
     bool enableCreate = true,
-  }) : this._(
-         ExpenseDialogMode.pickerTwoPaneGrid,
-         enableSearch: enableSearch,
-         enableReorder: false,
-         enableCreate: enableCreate,
-       );
+  }) {
+    return ExpenseDialogConfig._(
+      ledgerId,
+      ExpenseDialogMode.pickerTwoPaneGrid,
+      enableSearch: enableSearch,
+      enableReorder: false,
+      enableCreate: enableCreate,
+    );
+  }
 
-  const ExpenseDialogConfig.simpleListPicker({
+  factory ExpenseDialogConfig.simpleListPicker({
+    required String ledgerId,
     bool enableSearch = true,
     bool enableCreate = true,
-  }) : this._(
-         ExpenseDialogMode.pickerSimpleList,
-         enableSearch: enableSearch,
-         enableReorder: false,
-         enableCreate: enableCreate,
-       );
+  }) {
+    return ExpenseDialogConfig._(
+      ledgerId,
+      ExpenseDialogMode.pickerSimpleList,
+      enableSearch: enableSearch,
+      enableReorder: false,
+      enableCreate: enableCreate,
+    );
+  }
 }
