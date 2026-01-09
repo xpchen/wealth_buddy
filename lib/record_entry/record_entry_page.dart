@@ -12,8 +12,9 @@ import 'domain/record_service.dart'; // 按你实际路径调整
 
 class RecordEntryPage extends StatefulWidget {
   final String ledgerId;
-  const RecordEntryPage({super.key, required this.ledgerId});
-
+  final String? entryId;
+  const RecordEntryPage({super.key, required this.ledgerId, this.entryId});
+  bool get isEdit => entryId != null;
   @override
   State<RecordEntryPage> createState() => _RecordEntryPageState();
 }
