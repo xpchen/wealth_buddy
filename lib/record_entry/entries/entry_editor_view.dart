@@ -71,6 +71,7 @@ class _EntryEditorViewState extends State<EntryEditorView> {
             child: Column(
               children: [
                 // 金额区 + 拍照（与你截图一致的位置）
+                // 金额区部分
                 Container(
                   color: Colors.white,
                   padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
@@ -80,13 +81,23 @@ class _EntryEditorViewState extends State<EntryEditorView> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Expanded(
-                            child: Text(
-                              widget.draft.amount,
-                              style: TextStyle(
-                                fontSize: 54,
-                                fontWeight: FontWeight.w300,
-                                color: _amountColor,
-                                height: 1.0,
+                            child: GestureDetector(
+                              onTap: () {
+                                // 当点击金额时，如果数字键盘隐藏，则显示
+                                if (!_keypadVisible) {
+                                  setState(() {
+                                    _keypadVisible = true; // 显示数字键盘
+                                  });
+                                }
+                              },
+                              child: Text(
+                                widget.draft.amount,
+                                style: TextStyle(
+                                  fontSize: 54,
+                                  fontWeight: FontWeight.w300,
+                                  color: _amountColor,
+                                  height: 1.0,
+                                ),
                               ),
                             ),
                           ),
