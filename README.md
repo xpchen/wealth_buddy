@@ -1,16 +1,82 @@
-# wealth_buddy
+# Wealth Buddy（夏之小账本）
 
-A new Flutter project.
+Wealth Buddy（夏之小账本）是一款强调“快速记录、清晰复盘、离线可用”的本地记账应用。  
+当前版本聚焦 Beta 核心闭环：**记一笔（支出/收入/转账） → 流水 → 账户 → 预算**，并采用 **Flutter + SQLite(Drift)** 实现跨平台与本地数据可控。
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## Remark（项目说明 / 设计原则）
 
-A few resources to get you started if this is your first Flutter project:
+1. **先闭环，再扩展**
+   - 当前以可用为第一目标：记账录入顺畅、流水可查可改、账户统计清晰、预算可执行。
+   - 统计报表、模板市场、协同同步等均属于后续阶段能力，先保证核心体验稳定。
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+2. **本地优先，数据可控**
+   - 默认数据仅保存在本地 SQLite，不依赖云服务。
+   - 后续如引入“去中心化协同/多端同步”，会单独设计数据同步与冲突解决机制，不影响本地可用性。
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+3. **多账本（Ledger）架构**
+   - 一个账本代表一套独立的数据集合（可对应个人、家庭、公司等场景）。
+   - 不同账本可基于不同模板初始化不同分类/账户/规则。
+
+4. **模板化初始化（Seeder）**
+   - 应用启动会自动打开或创建默认账本（标准模板）。
+   - 通过 Seeder 初始化：账户、分类、图标等基础数据，确保“新用户开箱即用”。
+
+5. **工程约束与质量目标**
+   - 模块边界清晰：Record Entry / Flow / Account / Budget 分层组织。
+   - 数据层（Drift/DB）与 UI 分离，避免页面直接写复杂 SQL 或业务堆叠。
+   - 所有金额以最小单位存储（如分/minor），避免浮点误差（建议统一策略）。
+
+---
+
+## 核心功能
+
+- **记一笔**
+  - 支出 / 收入 / 转账三模式
+  - 金额键盘、备注、分类、账户选择（迭代中完善）
+- **流水**
+  - 列表查看、按时间分组、编辑（迭代中）
+  - 搜索 / 筛选 / 统计汇总（规划）
+- **账户**
+  - 多账户管理与余额展示（迭代中）
+  - 账户收支汇总（规划）
+- **预算中心**
+  - 月度预算、使用进度（迭代中）
+  - 预算提醒与结转（规划）
+
+---
+
+## 技术栈与架构
+
+- **Flutter**：跨平台 UI（Android / iOS / Windows / Web）
+- **SQLite + Drift**：本地持久化与类型安全查询
+- **多库/分库思路（可演进）**
+  - `wealth_buddy_meta.db`：全局元信息（账本列表、通用配置等）
+  - `wealth_buddy_media.db` 或 Ledger 独立库：账本业务数据（流水/分类/预算/账户等）
+- **启动引导（Bootstrap）**
+  - 打开 meta db → 查找未删除账本 → 没有则创建默认账本
+  - 打开 ledger db（建表）→ 写入/更新 ledgerInfo → Seeder 初始化（首次）
+
+---
+
+## 目录结构（参考）
+
+> 以实际仓库为准，下面是推荐分层理解
+
+- `lib/main.dart`：应用入口
+- `lib/data/db/`：数据库层（DbManager / meta / ledger / seeds）
+- `lib/record_entry/`：记一笔模块（entries / domain / dialogs / widgets）
+- `lib/flow/`：流水模块（flow_page / flow_edit_page 等）
+- `lib/account/`：账户模块（账户页、账户明细等）
+- `lib/budget/`：预算模块（预算中心等）
+
+---
+
+## 本地运行
+
+### 1) 环境准备
+- 安装 Flutter SDK
+- 运行检查：
+```bash
+flutter doctor
