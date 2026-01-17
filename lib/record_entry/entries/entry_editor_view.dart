@@ -9,6 +9,9 @@ import '../dialogs/income/income_sheet.dart';
 import '../dialogs/income/income_sheet_config.dart';
 import '../dialogs/transfer/transfer_sheet.dart';
 import '../dialogs/transfer/transfer_sheet_config.dart';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class EntryEditorView extends StatefulWidget {
   final EntryKind kind;
@@ -104,8 +107,8 @@ class _EntryEditorViewState extends State<EntryEditorView> {
                           SizedBox(
                             width: 64,
                             child: InkWell(
-                              onTap: () {
-                                // TODO: 拍照识别
+                              onTap: () async {
+                                await _showImageSourceDialog(this.context);
                               },
                               borderRadius: BorderRadius.circular(10),
                               child: Padding(
@@ -142,7 +145,6 @@ class _EntryEditorViewState extends State<EntryEditorView> {
                 ),
 
                 const SizedBox(height: 10),
-
                 // 字段区
                 Container(
                   color: Colors.white,
@@ -319,6 +321,12 @@ class _EntryEditorViewState extends State<EntryEditorView> {
                           ],
                         ),
                       ),
+
+                      if (_imagePaths.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 20),
+                          child: _buildImageGrid(), // 显示图片网格
+                        ),
                     ],
                   ),
                 ),
@@ -353,6 +361,161 @@ class _EntryEditorViewState extends State<EntryEditorView> {
         ],
       ),
     );
+  }
+
+  Future<void> _showImageSourceDialog(BuildContext context) async {
+    final ImagePicker picker = ImagePicker();
+
+    // 弹出底部选择框
+    final choice = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled:
+          true, // Ensures the bottom sheet size adjusts to the content
+      builder: (BuildContext context) {
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min, // Wrap content to fit the screen
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text("拍照"),
+                onTap: () {
+                  Navigator.pop(context, 0); // 返回 0 表示选择拍照
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo),
+                title: const Text("图库"),
+                onTap: () {
+                  Navigator.pop(context, 1); // 返回 1 表示选择图库
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.search),
+                title: const Text("AI识别"),
+                onTap: () {
+                  Navigator.pop(context, 2); // 返回 2 表示选择 AI 识别
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    // 根据选择调用相应的拍照或图库功能
+    if (choice != null) {
+      switch (choice) {
+        case 0:
+          _pickImageFromCamera(); // 拍照
+          break;
+        case 1:
+          _pickImageFromGallery(); // 从图库选择
+          break;
+        case 2:
+          _aiRecognition(); // AI识别
+          break;
+      }
+    }
+  }
+
+  Future<void> _aiRecognition() async {
+    // Placeholder: AI Recognition functionality under development
+    _toast("AI识别功能正在开发中，敬请期待！");
+  }
+
+  Future<void> _pickImageFromCamera() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.camera);
+
+    if (pickedFile != null) {
+      // 将图片路径保存到图片列表
+      setState(() {
+        _imagePaths.add(pickedFile.path);
+      });
+    }
+  }
+
+  Future<void> _pickImageFromGallery() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      setState(() {
+        _imagePaths.add(pickedFile.path);
+      });
+    }
+  }
+
+  List<String> _imagePaths = []; // 存储选择的图片路径
+  Widget _buildImageGrid() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: NeverScrollableScrollPhysics(),
+      itemCount: _imagePaths.length > 9 ? 9 : _imagePaths.length, // 最多显示9个图片
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3, // 每行显示3个图片
+        crossAxisSpacing: 8, // 每个图片之间的间隔
+        mainAxisSpacing: 8, // 每列之间的间隔
+        childAspectRatio: 1, // 图片的比例
+      ),
+      itemBuilder: (context, index) {
+        final imagePath = _imagePaths[index];
+        // 使用唯一的Key来部分刷新
+        return GridTile(
+          key: ValueKey(imagePath), // 根据图片路径设置唯一Key
+          child: Stack(
+            children: [
+              // 使用 FutureBuilder 加载图片
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8), // 圆角效果
+                child: FutureBuilder<File>(
+                  future: _loadImage(imagePath), // 异步加载图片
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Icon(Icons.error, color: Colors.red), // 显示错误图标
+                      );
+                    }
+                    if (snapshot.hasData) {
+                      return Image.file(snapshot.data!, fit: BoxFit.cover);
+                    }
+                    return Center(child: Text(''));
+                  },
+                ),
+              ),
+              // 删除按钮
+              Positioned(
+                top: 4,
+                right: 4,
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _imagePaths.removeAt(index); // 删除图片
+                    });
+                  },
+                  child: Container(
+                    padding: EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Icon(Icons.delete, color: Colors.white, size: 18),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<File> _loadImage(String imagePath) async {
+    // Simulate a delay for loading (remove this in real production code)
+    await Future.delayed(Duration(milliseconds: 500));
+    return File(imagePath); // 返回本地图片文件
   }
 
   // ==========================

@@ -24,7 +24,7 @@ class EntryDraft {
   // 新增：转账专用
   final String fromAccount;
   final String toAccount;
-
+  final List<String> imagePaths; // Store multiple image paths as a list
   // Private method to format the current date
   static String _getFormattedTime() {
     return '今天  ${DateFormat('MM月dd日').format(DateTime.now())}';
@@ -38,6 +38,7 @@ class EntryDraft {
     remark: '',
     fromAccount: '现金',
     toAccount: '存储卡',
+    imagePaths: [],
   );
 
   factory EntryDraft.initialIncome() => EntryDraft(
@@ -48,6 +49,7 @@ class EntryDraft {
     remark: '',
     fromAccount: '现金',
     toAccount: '存储卡',
+    imagePaths: [],
   );
 
   factory EntryDraft.initialTransfer() => EntryDraft(
@@ -58,6 +60,7 @@ class EntryDraft {
     remark: '',
     fromAccount: '现金',
     toAccount: '存储卡',
+    imagePaths: [],
   );
 
   // // 格式化当前日期，输出类似 "今天  01月07日"
@@ -73,6 +76,7 @@ class EntryDraft {
     required this.remark,
     required this.fromAccount,
     required this.toAccount,
+    required this.imagePaths,
   });
 
   EntryDraft copyWith({
@@ -92,6 +96,7 @@ class EntryDraft {
       remark: remark ?? this.remark,
       fromAccount: fromAccount ?? this.fromAccount,
       toAccount: toAccount ?? this.toAccount,
+      imagePaths: [],
     );
   }
 }

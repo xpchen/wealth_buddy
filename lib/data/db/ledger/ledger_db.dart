@@ -76,6 +76,14 @@ class LedgerDb extends _$LedgerDb {
       await customStatement(
         'CREATE INDEX IF NOT EXISTS idx_account_type_sort ON accounts(account_type, sort_order);',
       );
+
+      // 预算相关索引
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_budget_month_scope ON budget_plans(month, scope_type, is_deleted);',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_budget_scope_id ON budget_plans(scope_type, scope_id, month);',
+      );
     },
     onUpgrade: (m, from, to) async {
       if (from < 2) {

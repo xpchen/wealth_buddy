@@ -61,6 +61,7 @@ flutter:
   assets:
   - assets/images/month_banner.png
   - assets/images/account_header.png
+  - assets/images/placeholder_image.png
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

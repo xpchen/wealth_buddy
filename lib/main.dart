@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-
 import 'record_entry/record_entry_page.dart';
-import 'budget_center_page.dart';
+import 'budget/pages/budget_center_page.dart';
 import 'account/account_module.dart';
 
 import 'data/db/db_manager.dart';
@@ -207,7 +206,7 @@ class _LedgerHomePageState extends State<LedgerHomePage> {
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => const BudgetCenterPage(),
+                          builder: (_) => BudgetCenterPage(ledgerId: widget.ledgerId),
                         ),
                       );
                     },
